@@ -1,7 +1,11 @@
 const mysql = require('mysql2');
 const express = require('express');
+const cors = require('cors'); // Importa el paquete cors
 const app = express();
 const port = 80;
+
+// Configura CORS
+app.use(cors());
 
 const connection = mysql.createConnection({
   host: '127.0.0.1',
