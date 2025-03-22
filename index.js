@@ -1,11 +1,14 @@
 const mysql = require('mysql2');
 const express = require('express');
-const cors = require('cors'); // Importa el paquete cors
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const app = express();
 const port = 80;
 
-// Configura CORS
 app.use(cors());
+app.use(express.json());
+
+const SECRET_KEY = 'TuLlaveSecreta'; // Cambia esto a una llave más segura
 
 const connection = mysql.createConnection({
   host: '127.0.0.1',
@@ -23,7 +26,34 @@ connection.connect((err) => {
   console.log('Conectado a la base de datos MySQL');
 });
 
-app.get('/registros', (req, res) => {
+// Middleware para verificar tokens
+function verifyToken(req, res, next) {
+  const token = req.headers['authorization'];
+  if (!token) return res.status(403).send('Token requerido.');
+
+  jwt.verify(token, SECRET_KEY, (err, decoded) => {
+    if (err) return res.status(401).send('Token inválido.');
+    req.userId = decoded.id;
+    next();
+  });
+}
+
+// Ruta de autenticación
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+
+  const query = 'SELECT * FROM users WHERE username = ? AND password = ?';
+  connection.query(query, [username, password], (err, results) => {
+    if (err) return res.status(500).send('Error al autenticar');
+    if (results.length === 0) return res.status(401).send('Credenciales inválidas');
+
+    const token = jwt.sign({ id: results[0].id }, SECRET_KEY, { expiresIn: '1h' });
+    res.json({ token });
+  });
+});
+
+// Ruta protegida
+app.get('/registros', verifyToken, (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
@@ -33,7 +63,7 @@ app.get('/registros', (req, res) => {
     if (err) {
       return res.status(500).send('Error al contar registros');
     }
-    
+
     const total = countResult[0].total;
     const totalPages = Math.ceil(total / limit);
 
