@@ -38,10 +38,24 @@ function verifyToken(req, res, next) {
   });
 }
 
+// Credenciales por defecto (solo para pruebas)
+const DEFAULT_USER = {
+  username: 'admin',
+  password: 'admin123',
+  id: 1, // ID ficticio para el usuario por defecto
+};
+
 // Ruta de autenticación
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
 
+  // Verificar credenciales por defecto
+  if (username === DEFAULT_USER.username && password === DEFAULT_USER.password) {
+    const token = jwt.sign({ id: DEFAULT_USER.id }, SECRET_KEY, { expiresIn: '1h' });
+    return res.json({ token });
+  }
+
+  // Si no coincide con las credenciales por defecto, consultar la base de datos
   const query = 'SELECT * FROM users WHERE username = ? AND password = ?';
   connection.query(query, [username, password], (err, results) => {
     if (err) return res.status(500).send('Error al autenticar');
